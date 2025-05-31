@@ -1,4 +1,4 @@
-# best drops ever app
+# Dropsland app
 
 *Automatically synced with your [v0.dev](https://v0.dev) deployments*
 
