@@ -1,0 +1,20 @@
+{
+  "canisters": {
+    "dropsland_assets": {
+      "type": "assets",
+      "source": ["out"]
+    },
+    "dropsland_backend": {
+      "type": "motoko",
+      "main": "src/dropsland_backend/main.mo"
+    }
+  },
+  "defaults": {
+    "build": {
+      "args": "",
+      "packtool": ""
+    }
+  },
+  "output_env_file": ".env",
+  "version": 1
+} 
