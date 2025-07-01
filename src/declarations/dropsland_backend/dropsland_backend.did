@@ -1,0 +1,115 @@
+type User = 
+ record {
+   createdAt: Time;
+   id: principal;
+   username: text;
+ };
+type UploadSession = 
+ record {
+   artist: text;
+   contentType: text;
+   createdAt: Time;
+   expiresAt: Time;
+   id: text;
+   name: text;
+   totalChunks: nat;
+   totalSize: nat;
+   uploadedBy: principal;
+   uploadedChunks: nat;
+ };
+type Time = int;
+type Result_7 = 
+ variant {
+   err: text;
+   ok: Drop;
+ };
+type Result_6 = 
+ variant {
+   err: text;
+   ok: User;
+ };
+type Result_5 = 
+ variant {
+   err: text;
+   ok: vec nat8;
+ };
+type Result_4 = 
+ variant {
+   err: text;
+   ok: MusicFile;
+ };
+type Result_3 = 
+ variant {
+   err: text;
+   ok: MusicMetadata;
+ };
+type Result_2 = 
+ variant {
+   err: text;
+   ok: UploadSession;
+ };
+type Result_1 = 
+ variant {
+   err: text;
+   ok;
+ };
+type Result = 
+ variant {
+   err: text;
+   ok: text;
+ };
+type MusicMetadata = 
+ record {
+   artist: text;
+   contentType: text;
+   id: text;
+   name: text;
+   size: nat;
+   uploadedAt: Time;
+   uploadedBy: principal;
+ };
+type MusicFile = 
+ record {
+   artist: text;
+   contentType: text;
+   data: vec nat8;
+   id: text;
+   name: text;
+   size: nat;
+   uploadedAt: Time;
+   uploadedBy: principal;
+ };
+type Drop = 
+ record {
+   createdAt: Time;
+   creatorId: principal;
+   description: text;
+   id: nat;
+   title: text;
+ };
+service : {
+  cancelUpload: (sessionId: text) -> (Result_1);
+  createDrop: (title: text, description: text) -> (Result_7);
+  createUploadSession: (name: text, artist: text, contentType: text,
+   totalChunks: nat, totalSize: nat) -> (Result);
+  createUser: (username: text) -> (Result_6);
+  deleteMusic: (id: text) -> (Result_1);
+  finalizeUpload: (sessionId: text) -> (Result);
+  getAllDrops: () -> (vec Drop) query;
+  getAllMusicMetadata: () -> (vec MusicMetadata) query;
+  getCanisterStatus: () -> (text) query;
+  getDrop: (dropId: nat) -> (opt Drop) query;
+  getMusicData: (id: text) -> (Result_5) query;
+  getMusicFile: (id: text) -> (Result_4) query;
+  getMusicMetadata: (id: text) -> (Result_3) query;
+  getMusicStats: () -> (record {
+                          totalFiles: nat;
+                          totalSize: nat;
+                        }) query;
+  getUploadSession: (sessionId: text) -> (Result_2) query;
+  getUser: (userId: principal) -> (opt User) query;
+  uploadChunk: (sessionId: text, chunkIndex: nat, data: vec nat8) ->
+   (Result_1);
+  uploadMusic: (name: text, artist: text, data: vec nat8, contentType:
+   text) -> (Result);
+}
