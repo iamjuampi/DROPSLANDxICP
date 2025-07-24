@@ -7,6 +7,9 @@ import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
 import Image from "next/image"
 import { User, Lock } from "lucide-react"
+import { NFIDButton } from "@/components/nfid-button"
+import { useAuth } from "@/hooks/use-auth"
+import { Identity } from "@dfinity/agent"
 
 interface LoginScreenProps {
   onLogin: (username: string) => void
@@ -16,6 +19,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const { toast } = useToast()
+  const { loginWithNFID, isFirstTimeNFIDUser } = useAuth()
 
   const handleLogin = async () => {
     if (!username.trim() || !password.trim()) {
@@ -43,20 +47,23 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
     }
   }
 
-  const handleNFIDLogin = async () => {
+  const handleInternetIdentitySuccess = async (identity: Identity) => {
     try {
-      console.log("Simulating NFID login...")
-      // Simulamos un delay para que parezca que está cargando
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      const principal = identity.getPrincipal().toText()
+      console.log("Internet Identity login successful, principal:", principal)
       
-      // Simulamos un login exitoso
-      console.log("NFID login successful")
-      onLogin("iamjuampi") // Simula login como iamjuampi via NFID
+      // Use the loginWithNFID function which now handles automatic user creation
+      loginWithNFID(principal)
+      
+      toast({
+        title: "¡Bienvenido!",
+        description: "Has iniciado sesión exitosamente con Internet Identity",
+      })
     } catch (error) {
-      console.error("NFID login error:", error)
+      console.error("Error handling Internet Identity login:", error)
       toast({
         title: "Error",
-        description: "Failed to login with NFID",
+        description: "Error al procesar el login con Internet Identity",
         variant: "destructive",
       })
     }
@@ -133,13 +140,12 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
           </div>
         </div>
 
-        <Button
-          variant="outline"
+        <NFIDButton
+          onSuccess={handleInternetIdentitySuccess}
           className="w-full bg-gray-800 text-white border-gray-700 flex items-center justify-center h-11"
-          onClick={handleNFIDLogin}
         >
-          Login with NFID
-        </Button>
+          Internet Identity
+        </NFIDButton>
 
         <p className="text-sm text-gray-400 text-center">
           Don't have an account?{" "}

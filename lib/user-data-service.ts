@@ -98,6 +98,26 @@ class UserDataService {
         lastActive: new Date().toISOString()
       },
       {
+        id: 'iamjuampi',
+        username: 'iamjuampi',
+        type: 'artist',
+        profilePhoto: '/avatars/juampi.jpg',
+        bio: 'Techno producer and DJ from Argentina. Creating dark, industrial sounds that move the dance floor.',
+        genre: 'Techno',
+        location: 'Buenos Aires, Argentina',
+        website: 'https://iamjuampi.com',
+        socialLinks: {
+          twitter: '@iamjuampi',
+          instagram: '@iamjuampi',
+          youtube: 'iamjuampi',
+          spotify: 'iamjuampi'
+        },
+        followers: ['banger', 'nicolamarti', 'fan'],
+        following: ['banger', 'nicolamarti'],
+        createdAt: '2024-01-01T00:00:00Z',
+        lastActive: new Date().toISOString()
+      },
+      {
         id: 'banger',
         username: 'banger',
         type: 'artist',
@@ -607,6 +627,10 @@ class UserDataService {
 
   getPostsByUser(userId: string): Post[] {
     return Array.from(this.posts.values()).filter(post => post.authorId === userId)
+  }
+
+  getAllPosts(): Post[] {
+    return Array.from(this.posts.values())
   }
 
   getFeedForUser(userId: string): FeedItem[] {

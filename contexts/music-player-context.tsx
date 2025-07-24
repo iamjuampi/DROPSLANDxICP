@@ -1,3 +1,5 @@
+"use client"
+
 import React, { useState, useRef, useEffect, useCallback, useContext, createContext, ReactNode } from 'react'
 
 export interface Track {
@@ -19,14 +21,20 @@ interface MusicPlayerContextProps {
   volume: number
   isMuted: boolean
   showMiniPlayer: boolean
+  isExpanded: boolean
+  currentTrackIndex: number
   playTrack: (track: Track) => void
   togglePlay: () => void
   seek: (time: number) => void
   setVolumeLevel: (volume: number) => void
   toggleMute: () => void
   hideMiniPlayer: () => void
+  expandPlayer: () => void
+  collapsePlayer: () => void
+  nextTrack: () => void
+  previousTrack: () => void
   formatTime: (time: number) => string
-  audioRef: React.RefObject<HTMLAudioElement>
+  audioRef: React.RefObject<HTMLAudioElement | null>
 }
 
 const MusicPlayerContext = createContext<MusicPlayerContextProps | undefined>(undefined)
@@ -39,6 +47,9 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
   const [volume, setVolume] = useState(80)
   const [isMuted, setIsMuted] = useState(false)
   const [showMiniPlayer, setShowMiniPlayer] = useState(false)
+  const [isExpanded, setIsExpanded] = useState(false)
+  const [currentTrackIndex, setCurrentTrackIndex] = useState(0)
+  const [playlist, setPlaylist] = useState<Track[]>([])
 
   const audioRef = useRef<HTMLAudioElement>(null)
 
@@ -51,55 +62,132 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
 
   // Play a track
   const playTrack = useCallback((track: Track) => {
-    setCurrentTrack(track)
-    setIsPlaying(true)
-    setShowMiniPlayer(true)
-    setCurrentTime(0)
-    
-    if (audioRef.current && track.audioUrl) {
-      audioRef.current.src = track.audioUrl
-      audioRef.current.play()
+    try {
+      const isNewTrack = currentTrack?.id !== track.id
+      setCurrentTrack(track)
+      setIsPlaying(true)
+      setShowMiniPlayer(true)
+      
+      // Update playlist and track index
+      if (isNewTrack) {
+        // Import musicTracks dynamically to avoid circular dependency
+        import('@/lib/music-data').then(({ musicTracks }) => {
+          const trackIndex = musicTracks.findIndex(t => t.id === track.id)
+          setPlaylist(musicTracks)
+          setCurrentTrackIndex(trackIndex >= 0 ? trackIndex : 0)
+        })
+        setCurrentTime(0)
+      }
+      
+      if (audioRef.current && track.audioUrl) {
+        // Only set src if it's a new track or if there's no src
+        if (isNewTrack || !audioRef.current.src) {
+          audioRef.current.src = track.audioUrl
+        }
+        audioRef.current.play().catch((error) => {
+          console.error('Error playing track:', error)
+          setIsPlaying(false)
+          setShowMiniPlayer(false)
+        })
+      }
+    } catch (error) {
+      console.error('Error in playTrack:', error)
+      setIsPlaying(false)
+      setShowMiniPlayer(false)
     }
+  }, [currentTrack?.id])
+
+  // Next track
+  const nextTrack = useCallback(() => {
+    if (playlist.length === 0) return
+    
+    const nextIndex = (currentTrackIndex + 1) % playlist.length
+    const nextTrack = playlist[nextIndex]
+    if (nextTrack) {
+      playTrack(nextTrack)
+    }
+  }, [playlist, currentTrackIndex, playTrack])
+
+  // Previous track
+  const previousTrack = useCallback(() => {
+    if (playlist.length === 0) return
+    
+    const prevIndex = currentTrackIndex === 0 ? playlist.length - 1 : currentTrackIndex - 1
+    const prevTrack = playlist[prevIndex]
+    if (prevTrack) {
+      playTrack(prevTrack)
+    }
+  }, [playlist, currentTrackIndex, playTrack])
+
+  // Expand player
+  const expandPlayer = useCallback(() => {
+    setIsExpanded(true)
+  }, [])
+
+  // Collapse player
+  const collapsePlayer = useCallback(() => {
+    setIsExpanded(false)
   }, [])
 
   // Toggle play/pause
   const togglePlay = useCallback(() => {
     if (!currentTrack) return
     
-    if (audioRef.current) {
-      if (isPlaying) {
-        audioRef.current.pause()
-      } else {
-        audioRef.current.play()
+    try {
+      if (audioRef.current) {
+        if (isPlaying) {
+          audioRef.current.pause()
+          setIsPlaying(false)
+        } else {
+          audioRef.current.play().catch((error) => {
+            console.error('Error playing audio:', error)
+            setIsPlaying(false)
+          })
+          setIsPlaying(true)
+        }
       }
-      setIsPlaying(!isPlaying)
+    } catch (error) {
+      console.error('Error in togglePlay:', error)
+      setIsPlaying(false)
     }
   }, [currentTrack, isPlaying])
 
   // Seek to specific time
   const seek = useCallback((time: number) => {
-    setCurrentTime(time)
-    if (audioRef.current) {
-      audioRef.current.currentTime = time
+    try {
+      setCurrentTime(time)
+      if (audioRef.current) {
+        audioRef.current.currentTime = time
+      }
+    } catch (error) {
+      console.error('Error in seek:', error)
     }
   }, [])
 
   // Set volume
   const setVolumeLevel = useCallback((newVolume: number) => {
-    setVolume(newVolume)
-    if (audioRef.current) {
-      audioRef.current.volume = newVolume / 100
+    try {
+      setVolume(newVolume)
+      if (audioRef.current) {
+        audioRef.current.volume = newVolume / 100
+      }
+    } catch (error) {
+      console.error('Error in setVolumeLevel:', error)
     }
   }, [])
 
   // Toggle mute
   const toggleMute = useCallback(() => {
-    setIsMuted((prev) => {
-      if (audioRef.current) {
-        audioRef.current.muted = !prev
-      }
-      return !prev
-    })
+    try {
+      setIsMuted((prev) => {
+        if (audioRef.current) {
+          audioRef.current.muted = !prev
+        }
+        return !prev
+      })
+    } catch (error) {
+      console.error('Error in toggleMute:', error)
+    }
   }, [])
 
   // Hide mini player
@@ -125,14 +213,22 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
       setCurrentTime(0)
     }
 
+    const handleError = (error: Event) => {
+      console.error('Audio error:', error)
+      setIsPlaying(false)
+      setShowMiniPlayer(false)
+    }
+
     audio.addEventListener('timeupdate', handleTimeUpdate)
     audio.addEventListener('loadedmetadata', handleLoadedMetadata)
     audio.addEventListener('ended', handleEnded)
+    audio.addEventListener('error', handleError)
 
     return () => {
       audio.removeEventListener('timeupdate', handleTimeUpdate)
       audio.removeEventListener('loadedmetadata', handleLoadedMetadata)
       audio.removeEventListener('ended', handleEnded)
+      audio.removeEventListener('error', handleError)
     }
   }, [])
 
@@ -146,12 +242,18 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
         volume,
         isMuted,
         showMiniPlayer,
+        isExpanded,
+        currentTrackIndex,
         playTrack,
         togglePlay,
         seek,
         setVolumeLevel,
         toggleMute,
         hideMiniPlayer,
+        expandPlayer,
+        collapsePlayer,
+        nextTrack,
+        previousTrack,
         formatTime,
         audioRef
       }}

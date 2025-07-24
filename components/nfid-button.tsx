@@ -71,7 +71,7 @@ export function NFIDButton({ onSuccess, onError, children, className }: NFIDButt
       disabled={isConnecting}
       className={className}
     >
-      {isConnecting ? "Conectando..." : children || "NFID"}
+      {isConnecting ? "Conectando..." : children || "Internet Identity"}
     </Button>
   )
 } 

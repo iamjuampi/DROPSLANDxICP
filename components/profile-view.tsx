@@ -21,6 +21,7 @@ import {
   Paperclip,
   Send,
   LogOut,
+  Play,
 } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -32,8 +33,11 @@ import { Input } from "@/components/ui/input"
 import Image from "next/image"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 
-// Import the useAuth hook
+// Import the useAuth hook and UserProfile component
 import { useAuth } from "@/hooks/use-auth"
+import UserProfile from "@/components/user-profile"
+import { useMusicPlayer } from "@/hooks/use-music-player"
+import { musicTracks } from "@/lib/music-data"
 
 interface ProfileViewProps {
   username?: string
@@ -43,7 +47,7 @@ export default function ProfileView({ username = "usuario" }: ProfileViewProps) 
   const [isEditing, setIsEditing] = useState(false)
   const [postContent, setPostContent] = useState("")
   const [editedBio, setEditedBio] = useState("")
-  const { balance, donated, userData, isArtist, logout } = useAuth() // Get user data and check if artist
+  const { balance, donated, userData, isArtist, logout, isNFIDUser, user } = useAuth() // Get user data and check if artist
 
   // Nuevos estados para likes y comentarios
   const [likedPosts, setLikedPosts] = useState<{ [key: string]: boolean }>({})
@@ -51,6 +55,16 @@ export default function ProfileView({ username = "usuario" }: ProfileViewProps) 
   const [currentPostIndex, setCurrentPostIndex] = useState<number | null>(null)
   const [commentText, setCommentText] = useState("")
   const [postComments, setPostComments] = useState<{ [key: string]: { author: string; text: string }[] }>({})
+
+  // Music player context
+  const musicPlayer = useMusicPlayer()
+
+  // Lista de tracks disponibles - using the same tracks from music-data
+  const userTracks = musicTracks
+
+  const handlePlayTrack = (track: any) => {
+    musicPlayer.playTrack(track)
+  }
 
   // Determine avatar image based on username
   const avatarSrc = username === "iamjuampi" ? "/avatars/juampi.jpg" : "/avatars/user.jpg"
@@ -81,51 +95,583 @@ export default function ProfileView({ username = "usuario" }: ProfileViewProps) 
     })
   }
 
-  // Función para abrir el diálogo de comentarios
   const handleOpenComments = (postIndex: number) => {
     setCurrentPostIndex(postIndex)
     setShowCommentDialog(true)
   }
 
-  // Función para enviar un comentario
   const handleSendComment = () => {
-    if (!commentText.trim() || currentPostIndex === null) return
-
-    const postKey = `profile-${currentPostIndex}`
-    setPostComments((prev) => {
-      const newComments = { ...prev }
-      if (!newComments[postKey]) {
-        newComments[postKey] = []
-      }
-      newComments[postKey].push({
-        author: userData?.username || "user",
-        text: commentText,
-      })
-      return newComments
-    })
-
-    setCommentText("")
+    if (commentText.trim() && currentPostIndex !== null) {
+      const postKey = `profile-${currentPostIndex}`
+      setPostComments((prev) => ({
+        ...prev,
+        [postKey]: [
+          ...(prev[postKey] || []),
+          { author: userProfile.name, text: commentText.trim() },
+        ],
+      }))
+      setCommentText("")
+      setShowCommentDialog(false)
+    }
   }
 
   const handlePostSubmit = () => {
     if (postContent.trim()) {
-      // In a real app, this would send the post to a server
-      alert("Post submitted: " + postContent)
+      // Here you would typically send the post to your backend
+      console.log("New post:", postContent)
       setPostContent("")
+      // You could add the post to a local state or send it to your backend
     }
   }
 
   const handleEditToggle = () => {
+    setIsEditing(!isEditing)
     if (isEditing) {
-      // Save changes
-      alert("Profile updated successfully!")
+      // Save changes here
+      console.log("Saving bio:", editedBio)
     } else {
-      // Start editing - initialize with current bio
       setEditedBio(userProfile.bio)
     }
-    setIsEditing(!isEditing)
   }
 
+  // Sample posts data
+  const userPosts = [
+    {
+      content: "Just finished a new track! Can't wait to share it with you all.",
+      image: "/placeholder.svg?height=200&width=300",
+      likes: 42,
+      comments: 7,
+      time: "2h ago",
+    },
+    {
+      content: "Working on something special for my supporters. Stay tuned!",
+      image: null,
+      likes: 28,
+      comments: 5,
+      time: "1d ago",
+    },
+  ]
+
+  // Sample data for rewards and certifications
+  const artistRewards = [
+    {
+      title: "Exclusive Track Access",
+      description: "Get early access to unreleased tracks",
+      minTokens: 50,
+      subscribers: 12,
+    },
+    {
+      title: "Backstage Pass",
+      description: "VIP access to live events",
+      minTokens: 100,
+      subscribers: 8,
+    },
+  ]
+
+  const certifications = [
+    {
+      id: "1",
+      type: "gold" as const,
+      title: "Gold Artist",
+      description: "Achieved gold status on Spotify",
+      date: "2024-01-15",
+    },
+    {
+      id: "2",
+      type: "views" as const,
+      title: "1M Views",
+      description: "Reached 1 million views on YouTube",
+      date: "2024-02-20",
+    },
+    {
+      id: "3",
+      type: "platinum" as const,
+      title: "Platinum Artist",
+      description: "Achieved platinum status on Spotify",
+      date: "2024-03-10",
+    },
+    {
+      id: "4",
+      type: "soldout" as const,
+      title: "Sold Out Tour",
+      description: "Completed a sold out tour",
+      date: "2024-04-05",
+    },
+    {
+      id: "5",
+      type: "award" as const,
+      title: "Best Artist Award",
+      description: "Won best artist award",
+      date: "2024-05-12",
+    },
+  ]
+
+  const rewards = [
+    {
+      id: "1",
+      title: "Exclusive Track Access",
+      artistName: "iamjuampi",
+      artistAvatar: "/avatars/juampi.jpg",
+      description: "Get early access to unreleased tracks",
+      date: "2024-01-15",
+    },
+  ]
+
+  const followedArtists = [
+    {
+      id: "1",
+      name: "iamjuampi",
+      avatar: "/avatars/juampi.jpg",
+      followers: 1200,
+    },
+    {
+      id: "2",
+      name: "banger",
+      avatar: "/avatars/banger.jpg",
+      followers: 800,
+    },
+  ]
+
+  // If user is an Internet Identity user, use the UserProfile component
+  if (user && isNFIDUser()) {
+    return (
+      <div className="pb-6 bg-gray-950">
+        <UserProfile
+          userId={user}
+          username={userData?.username || "User"}
+          handle={userData?.handle}
+          profilePhoto={userData?.profilePhoto}
+          coverPhoto={userData?.coverPhoto}
+          isVerified={userData?.isVerified}
+          type={userData?.type}
+          bio={userData?.bio}
+          followers={userData?.followers?.length || 0}
+          following={userData?.following?.length || 0}
+          genre={userData?.genre}
+        />
+
+        {/* Balance and Stats Section - Only for Artists */}
+        {isArtist() && (
+          <div className="px-4 mt-6">
+            <div className="flex gap-4">
+              <div>
+                <p className="text-sm text-gray-400">Balance</p>
+                <div className="flex items-center">
+                  <span className="font-bold text-white">{balance} $DROPS</span>
+                </div>
+              </div>
+              <div>
+                <p className="text-sm text-gray-400">Purchased</p>
+                <div className="flex items-center">
+                  <span className="font-bold text-white">{donated} $DROPS</span>
+                </div>
+              </div>
+              <div>
+                <p className="text-sm text-gray-400">Artists</p>
+                <p className="font-bold text-white">8</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Tabs - Same structure for both fans and artists */}
+        <div className="mt-6">
+          <Tabs defaultValue={isArtist() ? "posts" : "artists"}>
+            <TabsList className={`grid w-full px-4 bg-gray-800 ${isArtist() ? "grid-cols-3" : "grid-cols-3"}`}>
+              {isArtist() ? (
+                <>
+                  <TabsTrigger value="posts" className="data-[state=active]:bg-gray-700">
+                    Posts
+                  </TabsTrigger>
+                  <TabsTrigger value="rewards" className="data-[state=active]:bg-gray-700">
+                    Rewards
+                  </TabsTrigger>
+                  <TabsTrigger value="certifications" className="data-[state=active]:bg-gray-700">
+                    Certifications
+                  </TabsTrigger>
+                </>
+              ) : (
+                <>
+                  <TabsTrigger value="artists" className="data-[state=active]:bg-gray-700">
+                    Following
+                  </TabsTrigger>
+                  <TabsTrigger value="tracks" className="data-[state=active]:bg-gray-700">
+                    Tracks
+                  </TabsTrigger>
+                  <TabsTrigger value="rewards" className="data-[state=active]:bg-gray-700">
+                    My Rewards
+                  </TabsTrigger>
+                </>
+              )}
+            </TabsList>
+
+            {/* Posts Tab - For All Users */}
+            <TabsContent value="posts" className="px-4 mt-4 space-y-4">
+              {/* New Post Creation Area - Only for Artists */}
+              {isArtist() && (
+                <Card className="bg-gray-800 border-gray-700">
+                  <CardContent className="p-4">
+                    <div className="flex items-start gap-3">
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage 
+                          src={userData?.profilePhoto || "/avatars/user.jpg"} 
+                          alt={userData?.username || "User"} 
+                        />
+                        <AvatarFallback>{userData?.username?.substring(0, 2).toUpperCase() || 'U'}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1">
+                        <Textarea
+                          placeholder="What's on your USB?"
+                          className="bg-gray-700 border-gray-600 text-white resize-none mb-3"
+                          value={postContent}
+                          onChange={(e) => setPostContent(e.target.value)}
+                        />
+                        <div className="flex flex-wrap gap-4 mb-3 justify-start">
+                          <ImageIcon className="h-5 w-5 text-gray-400 hover:text-white cursor-pointer" />
+                          <MapPin className="h-5 w-5 text-gray-400 hover:text-white cursor-pointer" />
+                          <Hash className="h-5 w-5 text-gray-400 hover:text-white cursor-pointer" />
+                          <BarChart2 className="h-5 w-5 text-gray-400 hover:text-white cursor-pointer" />
+                          <Paperclip className="h-5 w-5 text-gray-400 hover:text-white cursor-pointer" />
+                        </div>
+                        <Button
+                          className="w-full bg-bright-yellow hover:bg-bright-yellow-700 text-black"
+                          onClick={handlePostSubmit}
+                          disabled={!postContent.trim()}
+                        >
+                          Post
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {userPosts.map((post, index) => (
+                <Card key={index} className="bg-gray-800 border-gray-700">
+                  <CardContent className="p-4">
+                    <div className="flex items-center mb-3">
+                      <Avatar className="h-8 w-8 mr-2">
+                        <AvatarImage 
+                          src={userData?.profilePhoto || "/avatars/user.jpg"} 
+                          alt={userData?.username || "User"} 
+                        />
+                        <AvatarFallback>{userData?.username?.substring(0, 2).toUpperCase() || 'U'}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-medium text-white">{userData?.username || "User"}</p>
+                        <p className="text-gray-400 text-xs">{post.time}</p>
+                      </div>
+                    </div>
+                    <p className="text-sm text-gray-300 mb-3">{post.content}</p>
+                    {post.image && (
+                      <div className="mb-3 rounded-lg overflow-hidden">
+                        <img src={post.image || "/placeholder.svg"} alt="Post image" className="w-full h-auto" />
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between text-gray-400 text-sm">
+                      <button className="flex items-center" onClick={() => handleLike(index)}>
+                        <Heart
+                          className={`h-4 w-4 mr-1 ${likedPosts[`profile-${index}`] ? "fill-red-500 text-red-500" : ""}`}
+                        />
+                        {post.likes + (likedPosts[`profile-${index}`] ? 1 : 0)}
+                      </button>
+                      <button className="flex items-center" onClick={() => handleOpenComments(index)}>
+                        <MessageCircle className="h-4 w-4 mr-1" />
+                        {post.comments + (postComments[`profile-${index}`]?.length || 0)}
+                      </button>
+                      <button className="flex items-center">
+                        <Share2 className="h-4 w-4 mr-1" />
+                        Share
+                      </button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </TabsContent>
+
+            {/* Rewards Tab - For Artists */}
+            {isArtist() && (
+              <TabsContent value="rewards" className="px-4 mt-4 space-y-3">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-white font-medium">Manage Rewards</h3>
+                  <Button size="sm" className="bg-bright-yellow hover:bg-bright-yellow-700 text-black">
+                    Add Reward
+                  </Button>
+                </div>
+
+                {artistRewards.map((reward, index) => (
+                  <Card key={index} className="overflow-hidden bg-gray-800 border-gray-700">
+                    <CardContent className="p-3">
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1">
+                          <p className="text-sm text-white font-medium">{reward.title}</p>
+                          <p className="text-xs text-gray-400 mt-1">{reward.description}</p>
+                          <div className="flex items-center mt-1">
+                            <Badge variant="outline" className="text-xs bg-gray-700 text-gray-300 border-gray-600">
+                              {reward.minTokens} $DROPS required
+                            </Badge>
+                            <p className="text-xs text-gray-500 ml-2">{reward.subscribers} subscribers</p>
+                          </div>
+                        </div>
+                        <Button size="sm" variant="outline" className="h-8 bg-gray-700 text-white border-gray-600">
+                          Edit
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </TabsContent>
+            )}
+
+            {/* Certifications Tab - For Artists */}
+            <TabsContent value="certifications" className="px-4 mt-4 space-y-3">
+              {certifications.map((cert) => (
+                <Card key={cert.id} className="overflow-hidden bg-gray-800 border-gray-700">
+                  <CardContent className="p-3">
+                    <div className="flex items-start gap-3">
+                      <div className="w-12 h-12 rounded-full bg-bright-yellow/20 flex items-center justify-center">
+                        {cert.type === "gold" && <Disc className="h-6 w-6 text-bright-yellow" />}
+                        {cert.type === "platinum" && <Disc className="h-6 w-6 text-gray-300" />}
+                        {cert.type === "views" && <Video className="h-6 w-6 text-bright-yellow" />}
+                        {cert.type === "soldout" && <Users className="h-6 w-6 text-bright-yellow" />}
+                        {cert.type === "award" && <Award className="h-6 w-6 text-bright-yellow" />}
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-1">
+                          <p className="text-sm text-white font-medium">{cert.title}</p>
+                          {/* Change this part where the button styling is determined based on certification type */}
+                          <Button
+                            size="sm"
+                            className={`${
+                              cert.type === "gold"
+                                ? "bg-[#F9BF15] hover:bg-[#e0ab13] text-black" // Changed from #082479 to #F9BF15 with black text
+                                : cert.type === "platinum"
+                                  ? "bg-gray-400 hover:bg-gray-500"
+                                  : cert.type === "views"
+                                    ? "bg-red-600 hover:bg-red-700"
+                                    : cert.type === "soldout"
+                                      ? "bg-green-600 hover:bg-green-700"
+                                      : "bg-blue-600 hover:bg-blue-700"
+                            } text-white rounded-full`}
+                            onClick={() => {
+                              if (cert.type === "gold" || cert.type === "platinum") {
+                                window.open("https://open.spotify.com/artist/iamjuampi", "_blank")
+                              } else if (cert.type === "views") {
+                                window.open("https://youtube.com", "_blank")
+                              } else if (cert.type === "soldout") {
+                                alert("Tour dates coming soon!")
+                              } else {
+                                alert("Award details coming soon!")
+                              }
+                            }}
+                          >
+                            {cert.type === "gold"
+                              ? "Stream"
+                              : cert.type === "platinum"
+                                ? "Stream"
+                                : cert.type === "views"
+                                  ? "Watch"
+                                  : cert.type === "soldout"
+                                    ? "Tour Dates"
+                                    : "Award"}
+                          </Button>
+                        </div>
+                        <p className="text-xs text-gray-400">{cert.description}</p>
+                        <p className="text-xs text-gray-500 mt-1">{cert.date}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </TabsContent>
+
+            {/* Rewards Tab - For Fans */}
+            {!isArtist() && (
+              <TabsContent value="rewards" className="px-4 mt-4 space-y-3">
+                <div className="mb-4">
+                  <h3 className="text-white font-medium mb-2">My Rewards</h3>
+                  <p className="text-sm text-gray-400">Exclusive rewards from artists you support</p>
+                </div>
+
+                {rewards.map((reward) => (
+                  <Card key={reward.id} className="overflow-hidden bg-gray-800 border-gray-700">
+                    <CardContent className="p-3">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-10 w-10">
+                          <AvatarImage src={reward.artistAvatar} alt={reward.artistName} />
+                          <AvatarFallback>{reward.artistName.substring(0, 2).toUpperCase()}</AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1">
+                          <p className="text-sm text-white">
+                            <span className="font-medium">{reward.title}</span>
+                          </p>
+                          <p className="text-xs text-gray-400 mt-1">From {reward.artistName}</p>
+                          <p className="text-xs text-gray-500 mt-1">{reward.date}</p>
+                        </div>
+                        <Button size="sm" variant="outline" className="h-8 bg-gray-700 text-white border-gray-600">
+                          <ExternalLink className="h-3 w-3 mr-1" />
+                          <span className="text-xs">View</span>
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+
+                {rewards.length === 0 && (
+                  <div className="text-center py-8 bg-gray-800 rounded-lg border border-gray-700">
+                    <Banknote className="h-12 w-12 text-gray-600 mx-auto mb-3" />
+                    <p className="text-gray-300 font-medium">You don't have any rewards yet</p>
+                    <p className="text-gray-400 text-sm mt-1">
+                      Buy tokens from your favorite artists to receive exclusive rewards
+                    </p>
+                    <Button className="mt-4 bg-bright-yellow hover:bg-bright-yellow-700 text-black">
+                      Explore Artists
+                    </Button>
+                  </div>
+                )}
+              </TabsContent>
+            )}
+
+            {/* Following Tab - For Fans */}
+            {!isArtist() && (
+              <TabsContent value="artists" className="px-4 mt-4 space-y-3">
+                <div className="mb-4">
+                  <h3 className="text-white font-medium mb-2">Following</h3>
+                  <p className="text-sm text-gray-400">Artists you follow and support on DROPSLAND</p>
+                </div>
+
+                {followedArtists.map((artist) => (
+                  <Card
+                    key={artist.id}
+                    className="overflow-hidden bg-gray-800 border-gray-700 cursor-pointer"
+                    onClick={() => window.open(`/creator/${artist.id}`, "_self")}
+                  >
+                    <CardContent className="p-3">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-10 w-10">
+                          <AvatarImage src={artist.avatar} alt={artist.name} />
+                          <AvatarFallback>{artist.name.substring(0, 2).toUpperCase()}</AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1">
+                          <p className="text-sm text-white">
+                            <span className="font-medium">{artist.name}</span>
+                          </p>
+                          <p className="text-xs text-gray-400 mt-1">{artist.followers} followers</p>
+                        </div>
+                        <Button
+                          size="sm"
+                          className="bg-bright-yellow hover:bg-bright-yellow-700 text-black"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            window.open(`/creator/${artist.id}`, "_self")
+                          }}
+                        >
+                          <Banknote className="h-4 w-4 mr-1" />
+                          Buy
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </TabsContent>
+            )}
+
+            {/* Tracks Tab - For Fans */}
+            {!isArtist() && (
+              <TabsContent value="tracks" className="px-4 mt-4 space-y-3">
+                <div className="mb-4">
+                  <h3 className="text-white font-medium mb-2">My Music Collection</h3>
+                  <p className="text-sm text-gray-400">Your saved tracks and favorite music</p>
+                </div>
+
+                {userTracks.map((track) => (
+                  <Card
+                    key={track.id}
+                    className="overflow-hidden bg-gray-800 border-gray-700 cursor-pointer hover:bg-gray-700 transition-colors"
+                    onClick={() => handlePlayTrack(track)}
+                  >
+                    <CardContent className="p-3">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-12 w-12">
+                          <AvatarImage src={track.cover} alt={track.artist} />
+                          <AvatarFallback>{track.artist.substring(0, 2).toUpperCase()}</AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1">
+                          <p className="text-sm text-white font-medium">{track.title}</p>
+                          <p className="text-xs text-gray-400 mt-1">{track.artist}</p>
+                          <p className="text-xs text-gray-500 mt-1">{musicPlayer.formatTime(track.duration)}</p>
+                        </div>
+                        <Button
+                          size="sm"
+                          className="bg-bright-yellow hover:bg-bright-yellow-700 text-black"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handlePlayTrack(track)
+                          }}
+                        >
+                          <Play className="h-4 w-4 mr-1" />
+                          Play
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+
+                {userTracks.length === 0 && (
+                  <div className="text-center py-8 bg-gray-800 rounded-lg border border-gray-700">
+                    <Disc className="h-12 w-12 text-gray-600 mx-auto mb-3" />
+                    <p className="text-gray-300 font-medium">No tracks saved yet</p>
+                    <p className="text-gray-400 text-sm mt-1">
+                      Start building your music collection by saving your favorite tracks
+                    </p>
+                    <Button className="mt-4 bg-bright-yellow hover:bg-bright-yellow-700 text-black">
+                      Explore Music
+                    </Button>
+                  </div>
+                )}
+              </TabsContent>
+            )}
+          </Tabs>
+        </div>
+
+        {/* Comment Dialog */}
+        <Dialog open={showCommentDialog} onOpenChange={setShowCommentDialog}>
+          <DialogContent className="bg-gray-800 border-gray-700">
+            <DialogHeader>
+              <DialogTitle className="text-white">Comments</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              {currentPostIndex !== null && postComments[`profile-${currentPostIndex}`]?.map((comment, index) => (
+                <div key={index} className="flex items-start gap-3">
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={avatarSrc} alt={comment.author} />
+                    <AvatarFallback>{comment.author.substring(0, 2).toUpperCase()}</AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="font-medium text-white text-sm">{comment.author}</p>
+                    <p className="text-gray-300 text-sm">{comment.text}</p>
+                  </div>
+                </div>
+              ))}
+              <div className="flex gap-2">
+                <Input
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
+                  placeholder="Add a comment..."
+                  className="flex-1 bg-gray-700 border-gray-600 text-white"
+                />
+                <Button onClick={handleSendComment} className="bg-bright-yellow hover:bg-bright-yellow-700 text-black">
+                  Send
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+    )
+  }
+
+  // Original ProfileView for non-II users (legacy)
   return (
     <div className="pb-6 bg-gray-950">
       {/* Profile Header */}
@@ -252,7 +798,7 @@ export default function ProfileView({ username = "usuario" }: ProfileViewProps) 
       {/* Tabs - Reordered as requested */}
       <div className="mt-6">
         <Tabs defaultValue={isArtist() ? "posts" : "artists"}>
-          <TabsList className={`grid w-full px-4 bg-gray-800 ${isArtist() ? "grid-cols-3" : "grid-cols-2"}`}>
+          <TabsList className={`grid w-full px-4 bg-gray-800 ${isArtist() ? "grid-cols-3" : "grid-cols-3"}`}>
             {isArtist() ? (
               <>
                 <TabsTrigger value="posts" className="data-[state=active]:bg-gray-700">
@@ -269,6 +815,9 @@ export default function ProfileView({ username = "usuario" }: ProfileViewProps) 
               <>
                 <TabsTrigger value="artists" className="data-[state=active]:bg-gray-700">
                   Following
+                </TabsTrigger>
+                <TabsTrigger value="tracks" className="data-[state=active]:bg-gray-700">
+                  Tracks
                 </TabsTrigger>
                 <TabsTrigger value="rewards" className="data-[state=active]:bg-gray-700">
                   My Rewards
@@ -311,18 +860,6 @@ export default function ProfileView({ username = "usuario" }: ProfileViewProps) 
                       </Button>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* For fans, show a message about their activity */}
-            {!isArtist() && (
-              <Card className="bg-gray-800 border-gray-700">
-                <CardContent className="p-4 text-center">
-                  <p className="text-gray-300">Welcome to your feed. Here you'll see posts from artists you follow.</p>
-                  <p className="text-gray-400 text-sm mt-2">
-                    You can like and comment on posts, but only artists can create content.
-                  </p>
                 </CardContent>
               </Card>
             )}
@@ -513,11 +1050,16 @@ export default function ProfileView({ username = "usuario" }: ProfileViewProps) 
           {/* Following Tab - For Fans */}
           {!isArtist() && (
             <TabsContent value="artists" className="px-4 mt-4 space-y-3">
+              <div className="mb-4">
+                <h3 className="text-white font-medium mb-2">Following</h3>
+                <p className="text-sm text-gray-400">Artists you follow and support on DROPSLAND</p>
+              </div>
+
               {followedArtists.map((artist) => (
                 <Card
                   key={artist.id}
                   className="overflow-hidden bg-gray-800 border-gray-700 cursor-pointer"
-                  onClick={() => window.open("/artist/iamjuampi", "_self")}
+                  onClick={() => window.open(`/creator/${artist.id}`, "_self")}
                 >
                   <CardContent className="p-3">
                     <div className="flex items-center gap-3">
@@ -529,17 +1071,14 @@ export default function ProfileView({ username = "usuario" }: ProfileViewProps) 
                         <p className="text-sm text-white">
                           <span className="font-medium">{artist.name}</span>
                         </p>
-                        <p className="text-xs text-gray-400 mt-1">{artist.genre}</p>
-                        <div className="flex items-center mt-1">
-                          <span className="text-xs text-gray-400">{artist.tokens} $DROPS purchased</span>
-                        </div>
+                        <p className="text-xs text-gray-400 mt-1">{artist.followers} followers</p>
                       </div>
                       <Button
                         size="sm"
-                        className="bg-bright-yellow hover:bg-bright-yellow-700 text-white"
+                        className="bg-bright-yellow hover:bg-bright-yellow-700 text-black"
                         onClick={(e) => {
                           e.stopPropagation()
-                          window.open("/artist/iamjuampi", "_self")
+                          window.open(`/creator/${artist.id}`, "_self")
                         }}
                       >
                         <Banknote className="h-4 w-4 mr-1" />
@@ -549,6 +1088,62 @@ export default function ProfileView({ username = "usuario" }: ProfileViewProps) 
                   </CardContent>
                 </Card>
               ))}
+            </TabsContent>
+          )}
+
+          {/* Tracks Tab - For Fans */}
+          {!isArtist() && (
+            <TabsContent value="tracks" className="px-4 mt-4 space-y-3">
+              <div className="mb-4">
+                <h3 className="text-white font-medium mb-2">My Music Collection</h3>
+                <p className="text-sm text-gray-400">Your saved tracks and favorite music</p>
+              </div>
+
+              {userTracks.map((track) => (
+                <Card
+                  key={track.id}
+                  className="overflow-hidden bg-gray-800 border-gray-700 cursor-pointer hover:bg-gray-700 transition-colors"
+                  onClick={() => handlePlayTrack(track)}
+                >
+                  <CardContent className="p-3">
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-12 w-12">
+                        <AvatarImage src={track.cover} alt={track.artist} />
+                        <AvatarFallback>{track.artist.substring(0, 2).toUpperCase()}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1">
+                        <p className="text-sm text-white font-medium">{track.title}</p>
+                        <p className="text-xs text-gray-400 mt-1">{track.artist}</p>
+                        <p className="text-xs text-gray-500 mt-1">{musicPlayer.formatTime(track.duration)}</p>
+                      </div>
+                      <Button
+                        size="sm"
+                        className="bg-bright-yellow hover:bg-bright-yellow-700 text-black"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handlePlayTrack(track)
+                        }}
+                      >
+                        <Play className="h-4 w-4 mr-1" />
+                        Play
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+
+              {userTracks.length === 0 && (
+                <div className="text-center py-8 bg-gray-800 rounded-lg border border-gray-700">
+                  <Disc className="h-12 w-12 text-gray-600 mx-auto mb-3" />
+                  <p className="text-gray-300 font-medium">No tracks saved yet</p>
+                  <p className="text-gray-400 text-sm mt-1">
+                    Start building your music collection by saving your favorite tracks
+                  </p>
+                  <Button className="mt-4 bg-bright-yellow hover:bg-bright-yellow-700 text-black">
+                    Explore Music
+                  </Button>
+                </div>
+              )}
             </TabsContent>
           )}
         </Tabs>
@@ -671,6 +1266,19 @@ export default function ProfileView({ username = "usuario" }: ProfileViewProps) 
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Logout Button - At the bottom of the profile */}
+      <div className="mt-8 px-4 pb-8">
+        <Button
+          variant="outline"
+          size="lg"
+          className="w-full bg-gray-800 text-red-400 border-red-500/30 hover:bg-red-500/10 hover:border-red-500"
+          onClick={logout}
+        >
+          <LogOut className="h-4 w-4 mr-2" />
+          Logout
+        </Button>
+      </div>
     </div>
   )
 }

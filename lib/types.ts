@@ -3,9 +3,11 @@ export type UserType = "fan" | "artist"
 export interface UserData {
   id: string
   username: string
+  handle?: string  // @username
   type: UserType
   isVerified?: boolean
   profilePhoto?: string
+  coverPhoto?: string  // Cover image
   isIIUser?: boolean
   principal?: string
   bio?: string

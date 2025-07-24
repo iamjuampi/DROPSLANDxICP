@@ -4,13 +4,15 @@ import { Inter } from "next/font/google"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/toaster"
 import { AuthProvider } from "@/hooks/use-auth"
+import { MusicPlayerProvider } from "@/contexts/music-player-context"
+import MiniPlayerWrapper from "@/components/mini-player-wrapper"
+import ExpandedPlayer from "@/components/expanded-player"
 
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata = {
-  title: "DROPSLAND - Support Artists with Music-Backed Tokens",
-  description: "Buy $DROPS tokens for your favorite artists on World Chain",
-  generator: "v0.dev",
+  title: "DROPSLAND",
+  description: "Music platform on the Internet Computer",
 }
 
 export default function RootLayout({
@@ -22,13 +24,17 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning className="dark">
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
-          <AuthProvider>{children}</AuthProvider>
+          <AuthProvider>
+            <MusicPlayerProvider>
+              {children}
+              <MiniPlayerWrapper />
+              <ExpandedPlayer />
+            </MusicPlayerProvider>
+          </AuthProvider>
           <Toaster />
         </ThemeProvider>
       </body>
     </html>
   )
 }
-
-import "./globals.css"
 
