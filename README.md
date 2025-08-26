@@ -10,14 +10,6 @@ Dropsland V2 is the next generation of the Dropsland music platform, built on th
 - Decentralized music platform
 - Enhanced UI/UX with modern components
 
-## Development
-
-```bash
-npm run dev
-```
-
-The application runs on http://localhost:3004
-
 ## Deployment
 
 This version uses new canisters:
@@ -27,4 +19,6 @@ This version uses new canisters:
 ## Version History
 
 - V1: Original Dropsland platform
-- V2: Enhanced features and improved architecture 
+- V2: Enhanced features and improved architecture
+
+- https://5q5xx-yiaaa-aaaae-qfcvq-cai.icp0.io
