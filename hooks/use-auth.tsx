@@ -291,15 +291,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           localStorage.setItem("beans_donated", "75")
         }
       } else {
-        // This is a first-time Internet Identity user - create them automatically
-        const username = `user_${principal.slice(0, 8)}`
+        // This is a first-time Internet Identity user - create them as an artist automatically
+        const username = `artist_${principal.slice(0, 8)}`
         serviceUserData = userDataService.createUser({
           username,
-          type: "fan",
+          type: "artist", // Changed from "fan" to "artist"
           isIIUser: true,
           principal,
-          profilePhoto: "/avatars/user.jpg",
-          bio: "¡Hola! Soy un fan de la música electrónica y me encanta descubrir nuevos artistas en DROPSLAND. Apoyo a mis artistas favoritos y disfruto de la comunidad de música underground.",
+          profilePhoto: "/avatars/artist.jpg",
+          bio: "¡Hola! Soy un artista en DROPSLAND. Creo música electrónica y me encanta compartir mi pasión por la música con la comunidad. ¡Gracias por tu apoyo!",
+          genre: "Electronic", // Add default genre
+          handle: `@${username}`, // Add default handle
+          coverPhoto: "/images/artist-cover.jpg", // Add default cover image
+          isVerified: false, // New artists start unverified
+          // Artist-specific fields
+          posts: [], // Initialize empty posts array
+          supporters: 0, // Initialize supporters count
+          blgReceived: 0, // Initialize $DROPS received
+          tokenName: username.toUpperCase().slice(0, 6), // Generate token name from username
+          tokenPrice: 0.1, // Default token price
         })
         
         setUser(principal)
@@ -311,7 +321,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.setItem("beans_balance", "125")
         localStorage.setItem("beans_donated", "75")
         
-        console.log(`Created new user automatically: ${username} (${principal})`)
+        console.log(`Created new artist automatically: ${username} (${principal})`)
       }
     }
   }, [])

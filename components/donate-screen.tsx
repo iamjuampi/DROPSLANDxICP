@@ -5,7 +5,18 @@ import { ArrowLeft, Banknote } from "lucide-react"
 import Image from "next/image"
 import { useAuth } from "@/hooks/use-auth"
 
-export default function DonateScreen({ creator, onBack }) {
+interface Creator {
+  name: string
+  handle: string
+  avatar?: string
+}
+
+interface DonateScreenProps {
+  creator: Creator
+  onBack: () => void
+}
+
+export default function DonateScreen({ creator, onBack }: DonateScreenProps) {
   const [amount, setAmount] = useState(5)
   const [message, setMessage] = useState("")
   const [isAnonymous, setIsAnonymous] = useState(false)

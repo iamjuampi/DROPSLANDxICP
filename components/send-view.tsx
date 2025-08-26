@@ -1,234 +1,177 @@
 "use client"
 
-import { useState } from "react"
-import { ArrowLeft, Info, Search, User } from "lucide-react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Slider } from "@/components/ui/slider"
-import { useToast } from "@/hooks/use-toast"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { BanknoteIcon } from "@/components/icons/banknote-icon"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { useToast } from "@/hooks/use-toast"
+import { ledgerService } from "@/lib/ledger-service"
+import { Send, AlertCircle, Info } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
-// Import the useAuth hook
-import { useAuth } from "@/hooks/use-auth"
-
-interface SendViewProps {
-  onBack: () => void
-}
-
-// Modify the SendView function to update balance and donated value after sending
-export default function SendView({ onBack }: SendViewProps) {
-  const [amount, setAmount] = useState(20)
-  const [recipient, setRecipient] = useState("")
-  const [message, setMessage] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
-  const [selectedUser, setSelectedUser] = useState<any>(null)
+export default function SendView() {
   const { toast } = useToast()
-  const { balance, addToBalance, addToDonated } = useAuth() // Get balance and functions to update it
+  const [icpRecipient, setIcpRecipient] = useState("")
+  const [icpAmount, setIcpAmount] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+  const [transferFee, setTransferFee] = useState<bigint | null>(null)
 
-  const handleSend = () => {
-    if (!selectedUser) {
+  const handleSendICP = async () => {
+    if (!icpRecipient.trim() || !icpAmount.trim()) {
       toast({
-        title: "Select a recipient",
-        description: "Please select who to send tokens to",
+        title: "Missing information",
+        description: "Please enter both recipient and amount",
         variant: "destructive",
       })
       return
     }
 
-    // Check if there's enough balance
-    if (amount > balance) {
+    const amount = parseFloat(icpAmount)
+    if (isNaN(amount) || amount <= 0) {
       toast({
-        title: "Insufficient balance",
-        description: `You don't have enough tokens. Your current balance is ${balance} $DROPS`,
+        title: "Invalid amount",
+        description: "Please enter a valid positive amount",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Validate account identifier format
+    if (icpRecipient.length !== 64 || !/^[0-9a-fA-F]+$/.test(icpRecipient)) {
+      toast({
+        title: "Invalid account identifier",
+        description: "Please enter a valid 64-character hexadecimal ICP account identifier",
         variant: "destructive",
       })
       return
     }
 
     setIsLoading(true)
-
-    // Simulate network delay
-    setTimeout(() => {
-      // Subtract from balance
-      addToBalance(-amount)
-
-      // Add to donated value
-      addToDonated(amount)
-
-      toast({
-        title: "Sent successfully!",
-        description: `You've sent ${amount} $DROPS to ${selectedUser.name}`,
-      })
-      setIsLoading(false)
-    }, 1500)
-  }
-
-  const handleSearch = () => {
-    if (!recipient.trim()) return
-
-    setIsLoading(true)
-
-    // Simulate search delay
-    setTimeout(() => {
-      // Mock user found
-      const user = {
-        id: "u1",
-        name: recipient,
-        handle: `@${recipient.toLowerCase().replace(/\s+/g, "")}`,
-        avatar: "/avatars/user.jpg",
+    try {
+      const result = await ledgerService.sendICP(icpRecipient, amount)
+      
+      if (result.success) {
+        toast({
+          title: "Transfer successful!",
+          description: `Successfully sent ${amount} ICP. Block height: ${result.blockHeight}`,
+        })
+        setIcpRecipient("")
+        setIcpAmount("")
+      } else {
+        toast({
+          title: "Transfer failed",
+          description: result.error || "Unknown error occurred",
+          variant: "destructive",
+        })
       }
-
-      setSelectedUser(user)
+    } catch (error) {
+      console.error("Error sending ICP:", error)
+      toast({
+        title: "Error",
+        description: "Failed to send ICP. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
       setIsLoading(false)
-    }, 1000)
+    }
   }
+
+  const getTransferFee = async () => {
+    try {
+      const fee = await ledgerService.getTransferFee()
+      setTransferFee(fee)
+    } catch (error) {
+      console.error("Error getting transfer fee:", error)
+    }
+  }
+
+  // Get transfer fee when component mounts
+  useEffect(() => {
+    getTransferFee()
+  }, [])
+
+  const feeInICP = transferFee ? Number(transferFee) / 100000000 : 0
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <header className="bg-gray-900 px-4 py-3 border-b border-gray-800 flex items-center">
-        <button onClick={onBack} className="flex items-center text-gray-300">
-          <ArrowLeft className="h-4 w-4 mr-1" />
-          <span>Back</span>
-        </button>
-        <h1 className="flex-1 text-center font-semibold text-white">Send $DROPS</h1>
-        <div className="w-16"></div> {/* Spacer for centering */}
-      </header>
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Send className="h-5 w-5" />
+            Send ICP
+          </CardTitle>
+          <CardDescription>
+            Send ICP to another account on the Internet Computer
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="recipient">Recipient Account ID</Label>
+            <Input
+              id="recipient"
+              placeholder="Enter 64-character account identifier"
+              value={icpRecipient}
+              onChange={(e) => setIcpRecipient(e.target.value)}
+              className="font-mono text-sm"
+            />
+            <p className="text-xs text-muted-foreground">
+              The account identifier should be 64 characters long and contain only hexadecimal characters (0-9, a-f, A-F)
+            </p>
+          </div>
 
-      {/* Main Content */}
-      <div className="flex-1 p-4 overflow-auto bg-gray-950">
-        <Card className="mb-4 bg-gray-800 border-gray-700">
-          <CardContent className="p-4">
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="recipient" className="text-white">
-                  Recipient
-                </Label>
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <User className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
-                    <Input
-                      id="recipient"
-                      placeholder="Name or @username"
-                      className="pl-10 bg-gray-700 border-gray-600 text-white"
-                      value={recipient}
-                      onChange={(e) => setRecipient(e.target.value)}
-                      disabled={!!selectedUser}
-                    />
-                  </div>
-                  {!selectedUser ? (
-                    <Button
-                      onClick={handleSearch}
-                      disabled={!recipient.trim() || isLoading}
-                      className="bg-bright-yellow hover:bg-bright-yellow-700 text-black"
-                    >
-                      <Search className="h-4 w-4" />
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="outline"
-                      onClick={() => setSelectedUser(null)}
-                      className="bg-gray-700 text-white border-gray-600"
-                    >
-                      Change
-                    </Button>
-                  )}
-                </div>
-              </div>
+          <div className="space-y-2">
+            <Label htmlFor="amount">Amount (ICP)</Label>
+            <Input
+              id="amount"
+              type="number"
+              step="0.000001"
+              min="0"
+              placeholder="0.000001"
+              value={icpAmount}
+              onChange={(e) => setIcpAmount(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              Minimum amount: 0.000001 ICP
+            </p>
+          </div>
 
-              {selectedUser && (
-                <div className="bg-gray-700 p-3 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <Avatar>
-                      <AvatarImage src={selectedUser.avatar} alt={selectedUser.name} />
-                      <AvatarFallback>{selectedUser.name.substring(0, 2)}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-medium text-white">{selectedUser.name}</p>
-                      <p className="text-sm text-gray-400">{selectedUser.handle}</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+          {transferFee && (
+            <Alert>
+              <Info className="h-4 w-4" />
+              <AlertDescription>
+                Transfer fee: {feeInICP.toFixed(8)} ICP
+              </AlertDescription>
+            </Alert>
+          )}
 
-        <Card className="mb-4 bg-gray-800 border-gray-700">
-          <CardContent className="p-4">
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label className="text-white">Amount to send</Label>
-                  <div className="flex items-center text-bright-yellow font-bold">
-                    <BanknoteIcon className="h-5 w-5 mr-1" />
-                    <span>{amount} $DROPS</span>
-                  </div>
-                </div>
-                <Slider
-                  min={1}
-                  max={100}
-                  step={1}
-                  value={[amount]}
-                  onValueChange={(value) => setAmount(value[0])}
-                  className="my-4"
-                />
-                <div className="flex justify-between text-xs text-gray-400">
-                  <span>1 $DROPS</span>
-                  <span>100 $DROPS</span>
-                </div>
-              </div>
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              <strong>Important:</strong> Make sure you have enough ICP to cover both the transfer amount and the fee. 
+              Double-check the recipient address before sending.
+            </AlertDescription>
+          </Alert>
 
-              <div className="grid grid-cols-3 gap-2">
-                {[10, 20, 50].map((value) => (
-                  <Button
-                    key={value}
-                    variant="outline"
-                    onClick={() => setAmount(value)}
-                    className={
-                      amount === value
-                        ? "border-bright-yellow text-bright-yellow bg-gray-700"
-                        : "bg-gray-700 text-white border-gray-600"
-                    }
-                  >
-                    {value} $DROPS
-                  </Button>
-                ))}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="message" className="text-white">
-                  Message (optional)
-                </Label>
-                <Input
-                  id="message"
-                  placeholder="Add a message..."
-                  className="bg-gray-700 border-gray-600 text-white"
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <div className="flex flex-col gap-2">
-          <Button
-            onClick={handleSend}
-            disabled={isLoading || amount <= 0 || !selectedUser}
-            className="bg-bright-yellow hover:bg-bright-yellow-700 text-black"
+          <Button 
+            onClick={handleSendICP} 
+            disabled={isLoading || !icpRecipient.trim() || !icpAmount.trim()}
+            className="w-full"
           >
-            {isLoading ? "Processing..." : "Send tokens"}
+            {isLoading ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                Sending...
+              </>
+            ) : (
+              <>
+                <Send className="h-4 w-4 mr-2" />
+                Send ICP
+              </>
+            )}
           </Button>
-          <p className="text-xs text-gray-400 text-center mt-2 flex items-center justify-center">
-            <Info className="h-3 w-3 mr-1" />
-            This is a demo. No real transaction will be made.
-          </p>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }

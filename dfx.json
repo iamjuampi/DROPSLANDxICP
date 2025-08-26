@@ -3,18 +3,20 @@
     "dropsland_assets": {
       "type": "assets",
       "source": ["out"]
+    }
+  },
+  "dfx": "0.27.0",
+  "networks": {
+    "local": {
+      "bind": "127.0.0.1:8000",
+      "type": "ephemeral"
     },
-    "dropsland_backend": {
-      "type": "motoko",
-      "main": "src/dropsland_backend/main.mo"
+    "ic": {
+      "providers": [
+        "https://ic0.app"
+      ],
+      "type": "persistent"
     }
   },
-  "defaults": {
-    "build": {
-      "args": "",
-      "packtool": ""
-    }
-  },
-  "output_env_file": ".env",
   "version": 1
 } 

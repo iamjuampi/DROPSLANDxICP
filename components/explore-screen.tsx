@@ -69,7 +69,11 @@ const CREATORS = [
   },
 ]
 
-export default function ExploreScreen({ onSelectCreator }) {
+interface ExploreScreenProps {
+  onSelectCreator: (creator: any) => void
+}
+
+export default function ExploreScreen({ onSelectCreator }: ExploreScreenProps) {
   return (
     <div className="h-full overflow-auto pb-20">
       <div className="bg-primary p-4">

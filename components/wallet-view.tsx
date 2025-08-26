@@ -1,11 +1,19 @@
 "use client"
 
-import { TrendingUp, Users } from "lucide-react"
+import { useState, useEffect } from "react"
+import { TrendingUp, Users, Wallet, RefreshCw, QrCode, AlertCircle } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { useAuth } from "@/hooks/use-auth"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { BanknoteIcon } from "@/components/icons/banknote-icon"
+import { ledgerService, ICPBalance, Transaction } from "@/lib/ledger-service"
+import QRCodeComponent from "./qr-code"
+import TransactionHistory from "./transaction-history"
+import InternetIdentityAuth from "./internet-identity-auth"
+import ICPPriceInfo from "./icp-price-info"
+import ConnectionStatus from "./connection-status"
+import { useToast } from "@/hooks/use-toast"
 
 interface WalletViewProps {
   onBuy: () => void
@@ -14,232 +22,228 @@ interface WalletViewProps {
 }
 
 export default function WalletView({ onBuy, onSend, onReceive }: WalletViewProps) {
-  const { balance, donated } = useAuth()
+  const { toast } = useToast()
+  const [icpBalance, setIcpBalance] = useState<ICPBalance | null>(null)
+  const [transactions, setTransactions] = useState<Transaction[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [accountId, setAccountId] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState("overview")
+  const [isConnected, setIsConnected] = useState(false)
+  const [principal, setPrincipal] = useState<string | null>(null)
+
+  useEffect(() => {
+    checkConnectionStatus()
+  }, [])
+
+  const checkConnectionStatus = async () => {
+    try {
+      const isReady = ledgerService.isReady()
+      setIsConnected(isReady)
+      
+      if (isReady) {
+        const balance = await ledgerService.getBalance()
+        setIcpBalance(balance)
+      }
+    } catch (error) {
+      console.error("Error checking connection status:", error)
+      setIsConnected(false)
+    }
+  }
+
+  const loadWalletData = async () => {
+    setIsLoading(true)
+    try {
+      // Get ICP balance
+      const balance = await ledgerService.getBalance()
+      setIcpBalance(balance)
+
+      // Get account identifier
+      const accountIdentifier = await ledgerService.getAccountId()
+      setAccountId(accountIdentifier)
+
+      // For now, set empty transaction history since we don't have an indexer
+      setTransactions([])
+
+    } catch (error) {
+      console.error("Failed to load wallet data:", error)
+      toast({
+        title: "Error loading wallet",
+        description: "Failed to load wallet data. Please try again.",
+        variant: "destructive"
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const refreshBalance = async () => {
+    if (!isConnected) return
+    
+    setIsLoading(true)
+    try {
+      const balance = await ledgerService.getBalance()
+      setIcpBalance(balance)
+      toast({
+        title: "Balance refreshed",
+        description: "Your ICP balance has been updated",
+      })
+    } catch (error) {
+      toast({
+        title: "Refresh failed",
+        description: "Failed to refresh balance. Please try again.",
+        variant: "destructive"
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleAuthenticated = async (userPrincipal: string) => {
+    setPrincipal(userPrincipal)
+    setIsConnected(true)
+    await loadWalletData()
+  }
+
+  const handleLogout = () => {
+    setPrincipal(null)
+    setIsConnected(false)
+    setIcpBalance(null)
+    setAccountId(null)
+    setTransactions([])
+  }
+
+  if (!isConnected) {
+    return (
+      <div className="pb-6 bg-gray-950">
+        <div className="px-4 py-6">
+          <div className="mb-6">
+            <h1 className="text-xl font-bold text-white mb-2">ICP Wallet</h1>
+            <p className="text-gray-400">Connect your Internet Identity to access your ICP wallet</p>
+          </div>
+          
+          <InternetIdentityAuth 
+            onAuthenticated={handleAuthenticated}
+            onLogout={handleLogout}
+          />
+          
+          <div className="mt-6 p-4 bg-blue-900/20 border border-blue-700 rounded-lg">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-blue-400 mt-0.5" />
+              <div>
+                <p className="text-sm text-blue-300 font-medium">Real Blockchain Integration</p>
+                <p className="text-xs text-blue-200 mt-1">
+                  This wallet connects to the real Internet Computer blockchain. 
+                  All transactions and balances are live and reflect actual blockchain data.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="pb-6 bg-gray-950">
-      {/* Balance Card */}
-      <div className="px-4 py-6 bg-gradient-to-r from-black to-gray-800 text-white">
-        <h1 className="text-xl font-bold mb-2">Wallet</h1>
-        <h2 className="text-sm font-medium opacity-90">Your Balance</h2>
-        <div className="flex items-center mt-1">
-          <span className="text-2xl font-bold">{balance} $DROPS</span>
-        </div>
-        <div className="flex gap-2 mt-4">
-          <Button
-            size="sm"
-            variant="outline"
-            className="border-white text-white hover:bg-white/20 bg-white/20 backdrop-blur-sm"
-            onClick={onReceive}
-          >
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="grid w-full grid-cols-3 bg-gray-800 mb-4">
+          <TabsTrigger value="overview" className="data-[state=active]:bg-gray-700">
+            Overview
+          </TabsTrigger>
+          <TabsTrigger value="receive" className="data-[state=active]:bg-gray-700">
             Receive
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            className="border-white text-white hover:bg-white/20 bg-white/20 backdrop-blur-sm"
-            onClick={onBuy}
-          >
-            Buy
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            className="border-white text-white hover:bg-white/20 bg-white/20 backdrop-blur-sm"
-            onClick={onSend}
-          >
-            Send
-          </Button>
-        </div>
-      </div>
+          </TabsTrigger>
+          <TabsTrigger value="history" className="data-[state=active]:bg-gray-700">
+            History
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-3 gap-2 px-4 mt-4">
-        <Card className="bg-gray-800 shadow-sm border-gray-700">
-          <CardContent className="p-3">
-            <div className="flex flex-col items-center">
-              <BanknoteIcon className="h-6 w-6 text-bright-yellow mb-1" />
-              <p className="text-xs text-gray-400">Purchased</p>
-              <p className="font-semibold text-white">{donated} $DROPS</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="bg-gray-800 shadow-sm border-gray-700">
-          <CardContent className="p-3">
-            <div className="flex flex-col items-center">
-              <Users className="h-6 w-6 text-bright-yellow mb-1" />
-              <p className="text-xs text-gray-400">Artists</p>
-              <p className="font-semibold text-white">8</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="bg-gray-800 shadow-sm border-gray-700">
-          <CardContent className="p-3">
-            <div className="flex flex-col items-center">
-              <TrendingUp className="h-6 w-6 text-bright-yellow mb-1" />
-              <p className="text-xs text-gray-400">Value</p>
-              <p className="font-semibold text-white">$1.00</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+        {/* Overview Tab */}
+        <TabsContent value="overview" className="space-y-4">
+          {/* Connection Status */}
+          <div className="px-4">
+            <ConnectionStatus />
+          </div>
 
-      {/* Artist Tokens */}
-      <div className="mt-6 px-4">
-        <h2 className="text-lg font-semibold mb-3 text-white">Artist Tokens</h2>
-        <div className="space-y-3">
-          {artistTokens.map((token) => (
-            <Card key={token.id} className="bg-gray-800 shadow-sm border-gray-700">
-              <CardContent className="p-3">
-                <div className="flex items-center gap-3">
-                  <Avatar className="h-10 w-10">
-                    <AvatarImage src={token.avatar} alt={token.name} />
-                    <AvatarFallback>{token.name.substring(0, 2).toUpperCase()}</AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between">
-                      <p className="font-medium text-white">${token.symbol}</p>
-                      <div className="flex items-center text-bright-yellow font-medium">
-                        <BanknoteIcon className="h-5 w-5 mr-1" />
-                        <span>{token.amount}</span>
-                      </div>
-                    </div>
-                    <p className="text-xs text-gray-400">{token.name}</p>
-                    <div className="flex items-center justify-between mt-1">
-                      <p className="text-xs text-gray-500">Current value: ${token.value}</p>
-                      <p className="text-xs text-green-500">+{token.change}%</p>
-                    </div>
-                  </div>
+          {/* Balance Cards */}
+          <div className="px-4 py-6 bg-gradient-to-r from-black to-gray-800 text-white">
+            <div className="flex items-center justify-between mb-4">
+              <h1 className="text-xl font-bold">ICP Wallet</h1>
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-white text-white hover:bg-white/20"
+                onClick={refreshBalance}
+                disabled={isLoading}
+              >
+                <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              {/* ICP Balance */}
+              <div>
+                <h2 className="text-sm font-medium opacity-90">ICP Balance</h2>
+                <div className="flex items-center mt-1">
+                  <span className="text-2xl font-bold">
+                    {icpBalance ? icpBalance.icp.toFixed(4) : "0.0000"}
+                  </span>
+                  <span className="text-sm opacity-70 ml-1">ICP</span>
                 </div>
-              </CardContent>
-            </Card>
-          ))}
+                <p className="text-xs opacity-60 mt-1">
+                  ≈ ${icpBalance ? (icpBalance.icp * 12.50).toFixed(2) : "0.00"} USD
+                </p>
+              </div>
 
-          {artistTokens.length === 0 && (
-            <div className="text-center py-6 bg-gray-800 rounded-lg border border-gray-700">
-              <p className="text-gray-300">No tienes tokens de artistas aún</p>
-              <p className="text-gray-400 text-sm mt-1">
-                Compra tokens para apoyar a tus artistas favoritos y recibir recompensas exclusivas
-              </p>
-              <Button className="mt-3 bg-yellow-600 hover:bg-yellow-700 text-white">Explorar Artistas</Button>
+              {/* Account ID */}
+              <div>
+                <h2 className="text-sm font-medium opacity-90">Account ID</h2>
+                <p className="text-xs font-mono opacity-70 mt-1 break-all">
+                  {accountId ? `${accountId.slice(0, 8)}...${accountId.slice(-8)}` : "Loading..."}
+                </p>
+              </div>
             </div>
-          )}
-        </div>
-      </div>
+          </div>
 
-      {/* Transaction History */}
-      <div className="mt-6 px-4">
-        <h2 className="text-lg font-semibold mb-3 text-white">Transaction History</h2>
-        <div className="space-y-3">
-          {transactions.map((transaction) => (
-            <Card key={transaction.id} className="bg-gray-800 shadow-sm border-gray-700">
-              <CardContent className="p-3">
-                <div className="flex items-center gap-3">
-                  <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                      transaction.type === "sent" ? "bg-red-500/20" : "bg-green-500/20"
-                    }`}
-                  >
-                    <BanknoteIcon
-                      className={`h-5 w-5 ${transaction.type === "sent" ? "text-red-500" : "text-green-500"}`}
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between">
-                      <p className="font-medium text-white">{transaction.description}</p>
-                      <p className={`font-medium ${transaction.type === "sent" ? "text-red-500" : "text-green-500"}`}>
-                        {transaction.type === "sent" ? "-" : "+"}
-                        {transaction.amount} $DROPS
-                      </p>
-                    </div>
-                    <p className="text-xs text-gray-400">{transaction.date}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
+          {/* Action Buttons */}
+          <div className="px-4 grid grid-cols-3 gap-3">
+            <Button onClick={onBuy} className="bg-blue-600 hover:bg-blue-700">
+              Buy ICP
+            </Button>
+            <Button onClick={onSend} variant="outline" className="border-gray-600 text-white">
+              Send
+            </Button>
+            <Button onClick={onReceive} variant="outline" className="border-gray-600 text-white">
+              Receive
+            </Button>
+          </div>
+
+          {/* ICP Price Info */}
+          <div className="px-4">
+            <ICPPriceInfo />
+          </div>
+        </TabsContent>
+
+        {/* Receive Tab */}
+        <TabsContent value="receive" className="space-y-4">
+          <div className="px-4">
+            <h2 className="text-lg font-semibold text-white mb-4">Receive ICP</h2>
+            {accountId && (
+              <QRCodeComponent accountId={accountId} />
+            )}
+          </div>
+        </TabsContent>
+
+        {/* History Tab */}
+        <TabsContent value="history" className="space-y-4">
+          <div className="px-4">
+            <h2 className="text-lg font-semibold text-white mb-4">Transaction History</h2>
+            <TransactionHistory transactions={transactions} />
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }
-
-// Artist tokens data
-const artistTokens = [
-  {
-    id: "1",
-    name: "Banger",
-    symbol: "BANGER",
-    avatar: "/avatars/banger.jpg",
-    amount: 15,
-    value: "6.75",
-    change: "2.3",
-  },
-  {
-    id: "2",
-    name: "Nicola Marti",
-    symbol: "NICOLA",
-    avatar: "/avatars/nicola.jpg",
-    amount: 10,
-    value: "4.50",
-    change: "1.8",
-  },
-  {
-    id: "3",
-    name: "AXS",
-    symbol: "AXS",
-    avatar: "/avatars/axs.jpg",
-    amount: 25,
-    value: "11.25",
-    change: "3.5",
-  },
-  {
-    id: "4",
-    name: "FLUSH",
-    symbol: "FLUSH",
-    avatar: "/avatars/flush.jpg",
-    amount: 5,
-    value: "2.25",
-    change: "0.9",
-  },
-]
-
-// Sample transaction data
-const transactions = [
-  {
-    id: "1",
-    type: "sent",
-    description: "Sent to banger",
-    amount: 15,
-    date: "Mar 15, 2025",
-  },
-  {
-    id: "2",
-    type: "received",
-    description: "Received from AXS",
-    amount: 10,
-    date: "Mar 12, 2025",
-  },
-  {
-    id: "3",
-    type: "sent",
-    description: "Sent to Nicola Marti",
-    amount: 25,
-    date: "Mar 10, 2025",
-  },
-  {
-    id: "4",
-    type: "received",
-    description: "Purchased",
-    amount: 50,
-    date: "Mar 5, 2025",
-  },
-  {
-    id: "5",
-    type: "sent",
-    description: "Sent to FLUSH",
-    amount: 5,
-    date: "Mar 1, 2025",
-  },
-]
 

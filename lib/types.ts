@@ -24,6 +24,13 @@ export interface UserData {
   following: string[]
   createdAt: string
   lastActive: string
+  // Artist-specific fields
+  posts?: Post[]
+  supporters?: number
+  blgReceived?: number
+  tokenName?: string
+  tokenPrice?: number
+  featured?: boolean
 }
 
 export interface Post {

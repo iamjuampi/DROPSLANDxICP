@@ -1,9 +1,32 @@
 "use client"
 
+import { useState } from "react"
 import { ArrowLeft, Banknote, Heart, MessageCircle, Share2 } from "lucide-react"
 import Image from "next/image"
 
-export default function ProfileScreen({ creator = null, onBack, onDonate, isCurrentUser = false }) {
+interface Creator {
+  id: string
+  name: string
+  handle: string
+  avatar?: string
+  coverImage?: string
+  genre?: string
+  description?: string
+  bio?: string
+  supporters?: number
+  blgReceived?: number
+  featured?: boolean
+  posts?: any[]
+}
+
+interface ProfileScreenProps {
+  creator?: Creator | null
+  onBack: () => void
+  onDonate: () => void
+  isCurrentUser?: boolean
+}
+
+export default function ProfileScreen({ creator = null, onBack, onDonate, isCurrentUser = false }: ProfileScreenProps) {
   // Default creator data for current user profile if no creator is provided
   const profileData = creator || {
     id: "current-user",

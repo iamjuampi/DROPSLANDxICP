@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/hooks/use-auth"
 import { BanknoteIcon } from "@/components/icons/banknote-icon"
+import { userDataService } from "@/lib/user-data-service"
 
 interface ArtistProfileProps {
   artistId: string
@@ -22,7 +23,39 @@ export default function ArtistProfile({ artistId, onBack }: ArtistProfileProps) 
   const { addToBalance, isArtist } = useAuth()
 
   // Find artist by ID with better error handling
-  const artist = artists.find((a) => a.id === artistId)
+  let artist = artists.find((a) => a.id === artistId)
+
+  // If not found in static array, try to get from userDataService
+  if (!artist) {
+    const userData = userDataService.getUser(artistId)
+    if (userData) {
+      // Convert UserData to artist format
+      artist = {
+        id: userData.id,
+        name: userData.username,
+        handle: userData.handle || `@${userData.username}`,
+        avatar: userData.profilePhoto || "/avatars/artist.jpg",
+        coverImage: userData.coverPhoto || "/images/artist-cover.jpg",
+        genre: userData.genre || "Electronic",
+        description: userData.bio || "Artist on Dropsland",
+        supporters: userData.supporters || 0,
+        blgReceived: userData.blgReceived || 0,
+        featured: userData.featured || false,
+        tokenName: userData.tokenName || userData.username.toUpperCase().slice(0, 6),
+        tokenPrice: userData.tokenPrice || 0.1,
+        posts: (userData.posts || []).map(post => ({
+          content: post.content,
+          time: new Date(post.createdAt).toLocaleDateString(),
+          likes: post.likes.length,
+          comments: post.comments.length,
+          image: post.image,
+        })),
+        exclusiveContent: [],
+        rewards: [],
+        certifications: [],
+      }
+    }
+  }
 
   console.log("Artist Profile - ID received:", artistId)
   console.log("Artist Profile - Artist found:", artist)
